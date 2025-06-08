@@ -56,10 +56,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn deploy:deploy-file \
-            -s .m2/settings.xml \
-            -Dmaven.repo.local=$HOME/.m2/repository \
-            -Dfile=target/${{ github.event.repository.name }}-${{ github.ref_name }}.jar \
-            -DpomFile=pom.xml \
-            -DrepositoryId=github \
-            -Durl=https://maven.pkg.github.com/${{ github.repository }}
+          mvn -B -s .m2/settings.xml -Dmaven.repo.local=$HOME/.m2/repository deploy -DskipTests
