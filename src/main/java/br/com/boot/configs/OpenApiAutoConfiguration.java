@@ -21,7 +21,8 @@ import org.springdoc.core.customizers.OperationCustomizer;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
@@ -56,18 +57,22 @@ public class OpenApiAutoConfiguration {
     @ConditionalOnMissingBean
     public GroupedOpenApi customApi(final SwaggerProperties properties,
                                     final OperationCustomizer apiCustomizer) {
+        String groupName = properties.getGroup() != null && !properties.getGroup().isBlank()
+                ? properties.getGroup()
+                : "default";
+
         GroupedOpenApi.Builder builder = GroupedOpenApi.builder()
-                .group("api")
+                .group(groupName)
                 .addOperationCustomizer(apiCustomizer);
 
-        if (properties.getPathsToMatch() != null && !properties.getPathsToMatch().isEmpty()) {
+        if (Objects.nonNull(properties.getPathsToMatch()) && !properties.getPathsToMatch().isEmpty()) {
             builder.pathsToMatch(properties.getPathsToMatch().toArray(new String[0]));
         }
-        if (properties.getPathsToExclude() != null && !properties.getPathsToExclude().isEmpty()) {
+        if (Objects.nonNull(properties.getPathsToExclude()) && !properties.getPathsToExclude().isEmpty()) {
             builder.pathsToExclude(properties.getPathsToExclude().toArray(new String[0]));
         }
-        if ((properties.getPathsToMatch() == null || properties.getPathsToMatch().isEmpty())
-                && (properties.getPathsToExclude() == null || properties.getPathsToExclude().isEmpty())) {
+        if ((Objects.isNull(properties.getPathsToMatch()) || properties.getPathsToMatch().isEmpty())
+                && (Objects.isNull(properties.getPathsToExclude()) || properties.getPathsToExclude().isEmpty())) {
             builder.pathsToMatch("/**");
         }
 
@@ -78,21 +83,21 @@ public class OpenApiAutoConfiguration {
     @Bean
     public OperationCustomizer apiCustomizer() {
         return (operation, handler) -> {
-            Api ann = AnnotationUtils.findAnnotation(handler.getMethod(), Api.class);
-            if (Objects.isNull(ann)) {
+            Api annotation = AnnotationUtils.findAnnotation(handler.getMethod(), Api.class);
+            if (Objects.isNull(annotation)) {
                 return operation;
             }
 
-            operation.setSummary(ann.summary());
+            operation.setSummary(annotation.summary());
             operation.getResponses().clear();
 
-            if (!Void.class.equals(ann.success())) {
+            if (!Void.class.equals(annotation.success())) {
                 int code = detectSuccessCode(handler);
                 operation.getResponses()
-                        .addApiResponse(String.valueOf(code), buildResponse(code, ann.success()));
+                        .addApiResponse(String.valueOf(code), buildResponse(code, annotation.success()));
             }
 
-            for (String entry : ann.errors()) {
+            for (String entry : annotation.errors()) {
                 String[] parts = entry.split(":", 2);
                 String statusCode = parts[0].trim();
                 String desc = parts.length > 1
@@ -153,7 +158,7 @@ public class OpenApiAutoConfiguration {
         return list;
     }
 
-    private void configureSecuritySchemes(OpenAPI openApi, SwaggerProperties props) {
+    private void configureSecuritySchemes(final OpenAPI openApi, final SwaggerProperties props) {
         Components comps = new Components();
         List<SecurityRequirement> reqs = new ArrayList<>();
 
@@ -170,7 +175,7 @@ public class OpenApiAutoConfiguration {
             configureScheme(comps, reqs, props.getSecurity().getOauth2());
         }
 
-        if (comps.getSecuritySchemes() != null && !comps.getSecuritySchemes().isEmpty()) {
+        if (Objects.nonNull(comps.getSecuritySchemes()) && !comps.getSecuritySchemes().isEmpty()) {
             openApi.setComponents(comps);
             openApi.setSecurity(reqs);
         }
@@ -202,7 +207,7 @@ public class OpenApiAutoConfiguration {
         reqs.add(new SecurityRequirement().addList(scheme.getName()));
     }
 
-    private void configureExternalDocs(OpenAPI openApi, SwaggerProperties props) {
+    private void configureExternalDocs(final OpenAPI openApi, final SwaggerProperties props) {
         if (StringUtils.hasText(props.getExternalDocs().getUrl())) {
             openApi.setExternalDocs(new ExternalDocumentation()
                     .description(props.getExternalDocs().getDescription())
@@ -210,7 +215,7 @@ public class OpenApiAutoConfiguration {
         }
     }
 
-    private void configureTags(OpenAPI openApi, SwaggerProperties props) {
+    private void configureTags(final OpenAPI openApi, final SwaggerProperties props) {
         List<Tag> tags = new ArrayList<>();
         for (SwaggerProperties.Tag t : props.getTags()) {
             tags.add(new Tag().name(t.getName()).description(t.getDescription()));

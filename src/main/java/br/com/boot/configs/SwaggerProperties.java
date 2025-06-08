@@ -11,6 +11,7 @@ import java.util.List;
 @Data
 @ConfigurationProperties(prefix = "swagger")
 public class SwaggerProperties {
+    private String group = "default";
     private String title = "API Documentation";
     private String description;
     private String version = "1.0.0";
