@@ -54,22 +54,26 @@ public class OpenApiAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public GroupedOpenApi customApi(final SwaggerProperties properties) {
+    public GroupedOpenApi customApi(final SwaggerProperties properties,
+                                    final OperationCustomizer apiCustomizer) {
         GroupedOpenApi.Builder builder = GroupedOpenApi.builder()
-                .group("api");
+                .group("api")
+                .addOperationCustomizer(apiCustomizer);
 
-        if (Objects.nonNull(properties.getPathsToMatch()) && !properties.getPathsToMatch().isEmpty()) {
+        if (properties.getPathsToMatch() != null && !properties.getPathsToMatch().isEmpty()) {
             builder.pathsToMatch(properties.getPathsToMatch().toArray(new String[0]));
         }
-        if (Objects.nonNull(properties.getPathsToExclude()) && !properties.getPathsToExclude().isEmpty()) {
+        if (properties.getPathsToExclude() != null && !properties.getPathsToExclude().isEmpty()) {
             builder.pathsToExclude(properties.getPathsToExclude().toArray(new String[0]));
         }
-        if ((Objects.isNull(properties.getPathsToMatch()) || properties.getPathsToMatch().isEmpty())
-                && (Objects.isNull(properties.getPathsToMatch()) || properties.getPathsToExclude().isEmpty())) {
+        if ((properties.getPathsToMatch() == null || properties.getPathsToMatch().isEmpty())
+                && (properties.getPathsToExclude() == null || properties.getPathsToExclude().isEmpty())) {
             builder.pathsToMatch("/**");
         }
+
         return builder.build();
     }
+
 
     @Bean
     public OperationCustomizer apiCustomizer() {
