@@ -1,0 +1,60 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*.*.*'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    container: maven:3.8.6-jdk-17
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache Maven local repository
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-repo-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-repo-
+
+      - name: Build with Maven
+        run: mvn -B -s .m2/settings.xml -Dmaven.repo.local=$HOME/.m2/repository clean package -DskipTests
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: jar
+          path: target/*.jar
+
+  deploy:
+    name: Deploy
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    container: maven:3.8.6-jdk-17
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: jar
+          path: target
+
+      - name: Deploy to GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mvn deploy:deploy-file \
+            -s .m2/settings.xml \
+            -Dmaven.repo.local=$HOME/.m2/repository \
+            -Dfile=target/${{ github.event.repository.name }}-${{ github.ref_name }}.jar \
+            -DpomFile=pom.xml \
+            -DrepositoryId=github \
+            -Durl=https://maven.pkg.github.com/${{ github.repository }}
